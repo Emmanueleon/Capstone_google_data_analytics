@@ -5,6 +5,12 @@ This repository houses the culmination of my Google Data Analytics Professional 
 The capstone focuses on [brief description of the project goal and scope]. Utilizing a combination of data cleaning, exploratory data analysis, and advanced analytics techniques, I addressed [specific challenges or questions].
 
 ## Key Components:
+1. **Ask**
+2. **Prepare**
+3. **Process**
+4. **Analyze**
+5. **Share**
+6. **Act**
 1. **Data Cleaning**: Detailed steps taken to preprocess raw data and handle missing values, outliers, and inconsistencies.
 2. **Exploratory Data Analysis (EDA)**: Visualizations and statistical analyses to uncover patterns, trends, and potential relationships in the dataset.
 3. **Advanced Analytics**: Application of machine learning models or other advanced techniques to derive insights or predictions, showcasing my analytical skills.
