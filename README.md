@@ -4,6 +4,10 @@ This repository houses the culmination of my Google Data Analytics Professional 
 ## Project Overview:
 The capstone focuses on [brief description of the project goal and scope]. Utilizing a combination of data cleaning, exploratory data analysis, and advanced analytics techniques, I addressed [specific challenges or questions].
 
+## Background: 
+
+
+
 ## Key Components:
 1. **Ask**
 2. **Prepare**
