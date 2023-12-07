@@ -1,0 +1,113 @@
+---
+title: "Reporte Clapstone Google"
+author: "Emmanueleón"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(skimr)
+```
+
+## Base de datos
+
+### Importación
+
+------------------------------------------------------------------------
+
+El primer objetivo que tuvimos como equipo de análisis de datos fue la **importación** de las bases de datos con información recopilada de los dispositivos inteligentes que miden pasos, distancia, frecuencia cardíaca y calorías ingeridas, entre otros datos de de 30 mujeres adulta.
+
+Las bases de datos con las cuales dedidimos trabajar fueron 5, se enlistan a continuación:
+
+1.  **Registro de actividad diaria**. El conjunto de datos contiene información sobre el total de pasos, distancia, distancia registrada y consumo calórico registrado por cada usuaria. Además, incluye datos sobre la intensidad de la distancia recorrida (Muy activa, Moderada, Ligera, Sedentaria) y la intensidad de los minutos registrados (Muy activa, Bastante activa, Ligeramente activa y Sedentaria).
+
+2.  **Registro de consumo calórico**. El conjunto de datos contiene información sobre el consumo calórico diario realizado por la usuaria.
+
+3.  **Registro de sueño**. El conjunto de datos contiene información sobre los minutos registrados de sueño durante la noche por cada usuaria.
+
+4.  **Registro de frecuencia cardiáca**. El conjunto de datos contiene información sobre las pulsaciones por minuto registradas durante el día por cada usuaria.
+
+5.  **Registro de pérdida de peso**. El conjunto de datos incluye información sobre el peso corporal registrado por las usuarias en kilogramos y libras, así como el índice de masa corporal (IMC). Cada entrada refleja la manera en que el peso fue registrado por las usuarias en cada día de medición.
+
+```{r}
+
+daily_activity <- read.csv("../data/dailyActivity_merged.csv")
+daily_calories <- read_csv("../data/dailyCalories_merged.csv")
+daily_sleep <- read_csv("../data/minuteSleep_merged.csv")
+daily_heart_rate <- read_csv("../data/heartrate_seconds_merged.csv")
+weight_loss_info <- read_csv("../data/weightLogInfo_merged.csv")
+```
+
+### Limpieza
+
+------------------------------------------------------------------------
+
+El el registro de la actividad diaria y la base con el registro de calorias expedidas tiene el mismo número de observaciones por lo que decidimos conjuntalas en una sola base llamada `daily_activity report`.
+
+Para la unión de las dos bases de datos seleccionamos del registro de actividades unicamente las columnas con la información del id, el día del registro y el total de pasos, distancia y distancia registrada. Cambiamos el nombre de la columna con el día de registro `ActivityDate` de la base de registro de actividad diaria por `ActivityDay` para facilitar la unión entre bases. En reunión con los compañeros decidimos que en vez de seguir utilizando el formato Camel case utilizariamos el formato Snake case por lo que todas las columnas las dividimos por espacios insertando un guión bajo (`_`) entre palabras y las convertimos a minísculas. Creemos que de esta manera la lectura y el llamado de las columnas es más sencillo.
+
+Previo a la unión de ambas tablas notamos que existian problemas con el formato de los datos, específicamente el id no era factor y las fechas eran de tipo caracter, por lo que realizamos la conversión de ambas columnas. Además, creamos la variable `weekday`para saber el día de la semana que era la fecha registrada y etiquetamos esa variable en sí era día entre semana o fin de semana.
+
+```{r Exploración}
+
+## Clean and join table
+daily_activity_report <- daily_activity |> 
+  select(Id:TrackerDistance) |> 
+  rename("ActivityDay"=ActivityDate) |> 
+  inner_join(daily_calories, by= c("Id", "ActivityDay")) |> 
+  as_tibble() |> 
+  
+  ## Unifrom names
+  rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
+  rename_all(tolower) |>
+  
+  ## Change date info and factor variables 
+  mutate(
+    activity_day = mdy(activity_day), 
+    weekday= weekdays(activity_day),
+    weekday_type = case_when(!weekday %in% c("Saturday", "Sunday")~"Weekday", 
+                             weekday %in% c("Saturday", "Sunday")~"Weekend"),
+    across(c(id, weekday, weekday_type), factor))
+
+```
+
+
+A continuación, procedimos con la limpieza y transformación de las otras tres bases de datos. En cuanto al **registro del sueño**, identificamos una columna denominada valores. Al analizar los datos, notamos que estos valores representaban el lapso de minutos transcurridos entre las distintas mediciones. Utilizando esta información, calculamos la duración total del sueño (`total_sleep_minutes`) por cada usuaria y posteriormente lo convertimos en intervalos de tiempo, obteniendo así la cantidad total de horas de sueño (`total_sleep_hours`).
+
+```{r}
+daily_sleep |> 
+  rename("ActivityDay"=date) |> 
+  rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
+  rename_all(tolower) |>
+  
+  ## Change date info and factor variables 
+  mutate(
+    activity_day = mdy_hms(activity_day), 
+    day = date(activity_day)) |>
+  group_by(id, day) |> 
+  summarise(total_sleep_minutes = sum(value), .groups = "drop") |> 
+  mutate(total_sleep_hours = as.period(duration(minutes = total_sleep_minutes)), 
+         id= as.factor(id))
+```
+
+En lo que respecta al registro de **frecuencia cardíaca**, identificamos que el formato de los datos era incorrecto. Por lo que, procedimos a seguir los mismos pasos previamente mencionados para realizar la limpieza y transformación correspondiente.
+
+```{r}
+daily_heart_rate |> 
+  rename("ActivityDay"=Time) |> 
+  rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
+  rename_all(tolower) |>
+  
+  ## Change date info and factor variables 
+  mutate(
+    activity_day = mdy_hms(activity_day), 
+    id=as.factor(id))
+  
+```
+
+## Análisis exploratorio 
+
+
+
+Asumir que el ritmo promedio de una persona haciendo ejercicio es
