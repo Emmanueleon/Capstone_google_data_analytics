@@ -16,7 +16,7 @@ library(skimr)
 
 ------------------------------------------------------------------------
 
-El primer objetivo que tuvimos como equipo de análisis de datos fue la **importación** de las bases de datos con información recopilada de los dispositivos inteligentes que miden pasos, distancia, frecuencia cardíaca y calorías ingeridas, entre otros datos de de 30 mujeres adulta.
+El primer objetivo que tuvimos como equipo de análisis de datos fue la **importación** de las bases de datos con información recopilada de los dispositivos inteligentes que miden pasos, distancia, frecuencia cardíaca y calorías expedidas, entre otros datos de de 30 mujeres adulta.
 
 Las bases de datos con las cuales dedidimos trabajar fueron 5, se enlistan a continuación:
 
@@ -52,7 +52,7 @@ Previo a la unión de ambas tablas notamos que existian problemas con el formato
 ```{r Exploración}
 
 ## Clean and join table
-daily_activity_report <- daily_activity |> 
+daily_activity_report<- daily_activity |> 
   select(Id:TrackerDistance) |> 
   rename("ActivityDay"=ActivityDate) |> 
   inner_join(daily_calories, by= c("Id", "ActivityDay")) |> 
@@ -68,10 +68,11 @@ daily_activity_report <- daily_activity |>
     weekday= weekdays(activity_day),
     weekday_type = case_when(!weekday %in% c("Saturday", "Sunday")~"Weekday", 
                              weekday %in% c("Saturday", "Sunday")~"Weekend"),
-    across(c(id, weekday, weekday_type), factor))
+    across(c(id, weekday, weekday_type), factor)) |> 
+  
+  mutate(weekday=fct_relevel(weekday, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday","Saturday", "Sunday")))
 
 ```
-
 
 A continuación, procedimos con la limpieza y transformación de las otras tres bases de datos. En cuanto al **registro del sueño**, identificamos una columna denominada valores. Al analizar los datos, notamos que estos valores representaban el lapso de minutos transcurridos entre las distintas mediciones. Utilizando esta información, calculamos la duración total del sueño (`total_sleep_minutes`) por cada usuaria y posteriormente lo convertimos en intervalos de tiempo, obteniendo así la cantidad total de horas de sueño (`total_sleep_hours`).
 
@@ -106,7 +107,75 @@ daily_heart_rate |>
   
 ```
 
-## Análisis exploratorio 
+En los registros de pérdida de peso de las usuarias notamos la misma incosistencia en el tipo de datos. No obstante, para abordar este caso específico, implementamos ciertos procedimientos adicionales. En primer lugar, a pesar de que las fechas contenían la hora exacta de la medición, nos enfocamos únicamente en extraer el día correspondiente. Además, empleamos los datos del índice de masa corporal (IMC) para obtener el estado nutricional de las usuarias.
+
+```{r}
+weight_loss_tbl <- weight_loss_info |> 
+  rename("activity_day" = Date) |> 
+  ## Unifrom names
+  rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
+  rename_all(tolower) |> 
+  
+  ## Change date info and factor variables 
+  mutate(bmi_classification= case_when(bmi < 18.5~"uw", 
+                                       between(bmi, 18.5,24.99)~"np",
+                                       between(bmi, 25,29.99)~"sp",
+                                       bmi >= 30~"ob",
+                                       TRUE~"Check"), 
+         activity_day_time = mdy_hms(activity_day),
+         activity_day = date(activity_day_time), 
+         across(c(id, bmi_classification), factor))|> 
+  select(id, activity_day, weight_kg, bmi, is_manual_report, bmi_classification)
+```
+
+## Análisis exploratorio
+
+Un aspecto importante durante el análisis de los datos es la disparidad en las dimensiones de las distintas bases de datos. Por lo que optamos realizar una evaluación general del informe diario que abarcaba las 940 observaciones presentes en las bases de datos de actividad diaria y consumo calórico.
+
+Con el objetivo de determinar el promedio en el que nuestras usuarias experimentan una mayor actividad y registran una mayor quema calórica, procedimos a agrupar los datos según el día correspondiente.
+
+```{r}
+# Resumen actividad física 
+## ¿Cuál es el día que tiene una mayor cantidad de pasos
+daily_activity_report |> 
+  group_by(weekday) |> 
+  summarise(avg_total_steps = mean(total_steps), 
+            avg_total_distance =  mean(total_distance), 
+            avg_tracker_distance = mean(total_distance), 
+            avg_total_calories = mean(calories), 
+  ) |> 
+  arrange(desc(avg_total_calories))
+```
+
+De acuerdo con nuestros resultados observamos que en promedio:
+
+-   Los sábados destacan como el día que presenta el mayor número de pasos y la distancia total recorrida, seguido de los martes y lunes. Este fenómeno podría atribuirse al hecho de que, dentro de nuestro público objetivo, se encuentran personas comprometidas con su salud física. Es plausible que las mujeres de nuestro segmento de mercado prefieran ejercitarse especialmente los sábados. Para validar esta hipótesis, proponemos organizar una reunión con el equipo de marketing. Esto nos permitirá obtener una visión más completa y respaldar esta idea con análisis futuros.
+
+-   Por otro lado, como era de esperarse, el día domingo registra la menor actividad en términos de pasos y distancia.
+
+-   De manera similar, notamos que los martes y sábados son los días con un mayor gasto energético, mientras que los domingos y jueves muestran el menor consumo de calorías. Este patrón sugiere posibles tendencias en los hábitos de ejercicio y el gasto calórico de nuestras usuarias. 
+
+Para corroborar si la quema de calorías se relaciona con el total de pasos de las usuarias, creamos una visualización que nos ayude a entender este comportamiento. Observamos que efectivamente parece existir una relación entre las calorías gastadas y la cantidad de pasos totales. 
+
+```{r}
+daily_activity_report %>%
+  ggplot(aes(x = total_steps, y = calories, color = weekday)) +
+    geom_point(show.legend = FALSE) +
+    geom_smooth(method = "lm", se = TRUE, color = "black", show.legend = FALSE) +
+    facet_wrap(~weekday, scales = "free") +
+    theme_minimal() +
+    labs(
+    x = "Total de Pasos",
+    y = "Calorías",
+    title = "Relación entre pasos y calorías por día de la semana",
+    subtitle = "Análisis basado en el informe diario de actividad \n",
+    caption = "Fuente: Daily Activity Report"
+  )
+  
+```
+
+El esquipo de trabajo quiso evaluar este tipo de relación mediante una correlación.
+
 
 
 
