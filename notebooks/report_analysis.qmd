@@ -7,6 +7,7 @@ editor: visual
 
 ```{r}
 library(tidyverse)
+library(broom)
 library(skimr)
 ```
 
@@ -77,7 +78,7 @@ daily_activity_report<- daily_activity |>
 A continuación, procedimos con la limpieza y transformación de las otras tres bases de datos. En cuanto al **registro del sueño**, identificamos una columna denominada valores. Al analizar los datos, notamos que estos valores representaban el lapso de minutos transcurridos entre las distintas mediciones. Utilizando esta información, calculamos la duración total del sueño (`total_sleep_minutes`) por cada usuaria y posteriormente lo convertimos en intervalos de tiempo, obteniendo así la cantidad total de horas de sueño (`total_sleep_hours`).
 
 ```{r}
-daily_sleep |> 
+daily_sleep_report <- daily_sleep |> 
   rename("ActivityDay"=date) |> 
   rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
   rename_all(tolower) |>
@@ -132,6 +133,12 @@ weight_loss_tbl <- weight_loss_info |>
 
 Un aspecto importante durante el análisis de los datos es la disparidad en las dimensiones de las distintas bases de datos. Por lo que optamos realizar una evaluación general del informe diario que abarcaba las 940 observaciones presentes en las bases de datos de actividad diaria y consumo calórico.
 
+```{r}
+skim_without_charts(daily_activity_report)
+```
+
+
+
 Con el objetivo de determinar el promedio en el que nuestras usuarias experimentan una mayor actividad y registran una mayor quema calórica, procedimos a agrupar los datos según el día correspondiente.
 
 ```{r}
@@ -173,8 +180,21 @@ daily_activity_report %>%
   )
   
 ```
+El equipo de trabajo se propuso analizar la relación entre el número de pasos y el consumo de calorías mediante una correlación. Los resultados revelaron una correlación significativa entre ambos factores a lo largo de la semana. Sin embargo, la fuerza de estas correlaciones varió. En la mayoría de los días (Lunes, Martes, Miércoles y Viernes), las correlaciones son de magnitud mediana. En contraste, en los días Jueves, Sábado y Domingo, se observaron correlaciones más fuertes.
 
-El esquipo de trabajo quiso evaluar este tipo de relación mediante una correlación.
+```{r}
+daily_activity_report %>%
+  group_by(weekday) %>%
+  do(tidy(cor.test(.$total_steps, .$calories))) |>
+  ungroup() |> 
+  select(weekday, estimate,p.value)
+```
+
+
+
+```{r}
+daily_sleep_report
+```
 
 
 
