@@ -1,18 +1,28 @@
-# Data
+# Exportación y limpieza de base de datos
 
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Preparación del ambiente
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+## Limpieza del ambiente 
+rm(list = ls())
+
+## Cargar los paquetes a utilizar
 library(tidyverse)
 library(DataExplorer)
 library(ggpubr)
 
-
+## Carga de objeto
 daily_activity <- read.csv("../data/dailyActivity_merged.csv")
 daily_calories <- read_csv("../data/dailyCalories_merged.csv")
-
-
 daily_sleep <- read_csv("../data/minuteSleep_merged.csv")
-heart_rate_info <- read_csv("../data/heartrate_seconds_merged.csv")
-
+daily_heart_rate <- read_csv("../data/heartrate_seconds_merged.csv")
 weight_loss_info <- read_csv("../data/weightLogInfo_merged.csv")
+
+
+
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Tablas de dato conjuntas
+# ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 
@@ -54,13 +64,19 @@ daily_activity_report <- daily_activity |>
     across(c(id, weekday, weekday_type), factor))
 
 
+
+
+  
+  
+
 # Cambio del nombre de la base de datos `ActivityDate` para que corresponda con las otras bases
 # Sin embargo, notamos algunas inconsistencias con el tipo de datos que contiene. 
 # Por ejemplo notamos que la columna Id es de tipo numérico y otras columnas contienen 
 # fechas y tiempo. Por lo que es necesario hacer el parseo de esas variables. 
 
 
-# ¿Cuál es el día que tiene una mayor cantidad de pasos
+# Resumen actividad física 
+## ¿Cuál es el día que tiene una mayor cantidad de pasos
 daily_activity_report |> 
   group_by(weekday) |> 
   summarise(avg_total_steps = mean(total_steps), 
@@ -155,6 +171,15 @@ daily_activity_report_imc |>
 
 
 
+
+
+
+
+
+
+
+
+
 ## Debido a que es un gran conjunto de datos tomamos una muestra representativa para fines prácticos del caso de estudio. 
 
 daily_activity_report %>%
@@ -206,3 +231,19 @@ ggplot(daily_activity_tbl, aes(x = ActivityDate, y = Total_steps, color=Id)) +
 
 view(daily_activity_tbl)
 
+
+
+
+## Valores de sueño 
+daily_sleep |> 
+  rename("ActivityDay"=date) |> 
+  rename_all(~ str_replace_all(., "(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_")) |> 
+  rename_all(tolower) |>
+  
+  ## Change date info and factor variables 
+  mutate(
+    activity_day = mdy_hms(activity_day), 
+    day = date(activity_day)) |>
+  group_by(id, day) |> 
+  summarise(total_sleep_minutes = sum(value), .groups = "drop") |> 
+  mutate(total_sleep_hours = as.period(duration(minutes = total_sleep_minutes)))    
